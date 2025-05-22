@@ -1,0 +1,50 @@
+# .github/workflows/nodejs-ci.yml
+
+name: Node.js CI
+
+# ワークフローが実行されるトリガーを指定
+on:
+  push:
+    branches: [main] # mainブランチへのプッシュ時に実行 (masterブランチの場合は master に変更)
+  pull_request:
+    branches: [main] # mainブランチへのプルリクエスト時に実行 (masterブランチの場合は master に変更)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest # ジョブを実行するランナーを指定 (最新のUbuntuを使用)
+
+    strategy:
+      matrix:
+        node-version: [22.x] # テストを実行するNode.jsのバージョンを指定 (プロジェクトに合わせて調整)
+        # プロジェクトで使用しているNode.jsのバージョンに合わせてください。
+        # Dockerコンテナ内で使用しているバージョンと合わせるのが理想的です。
+
+    steps:
+      - name: Checkout repository # リポジトリのコードをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }} # 指定したバージョンのNode.jsをセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm" # npmの依存関係をキャッシュしてビルドを高速化
+
+      - name: Install dependencies # npm ci を使用して依存関係をクリーンインストール
+        run: npm ci
+        # package-lock.json がない場合や、特定の理由で npm install を使いたい場合は以下に置き換え
+        # run: npm install
+
+      - name: Run tests # テストを実行
+        run: npm test
+        # package.json の "scripts": { "test": "..." } に設定されたコマンドが実行されます。
+        # もし特定のオプション (例: --detectOpenHandles) をCIで常に使いたい場合は、
+        # package.json の test スクリプト自体を "jest --detectOpenHandles" のように更新するか、
+        # この行を run: npm test -- --detectOpenHandles のように変更します。
+        # (ただし、後者の場合、npm test の後に -- を挟む必要があります)
+
+    # (オプション) テストカバレッジレポートのアップロードなど、追加のステップが必要な場合はここに記述
+    # - name: Upload coverage reports
+    #   uses: actions/upload-artifact@v4
+    #   with:
+    #     name: coverage-report-${{ matrix.node-version }}
+    #     path: coverage/ # カバレッジレポートのパスに合わせて変更

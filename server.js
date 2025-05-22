@@ -9,7 +9,7 @@ const io = socketIo(server);
 const PORT = process.env.PORT || 3000;
 
 // 開発モードでのみ livereload を有効にする
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== "production" && process.env.NODE_ENV !== "test") {
   const livereload = require("livereload");
   const connectLiveReload = require("connect-livereload");
 
@@ -22,6 +22,7 @@ if (process.env.NODE_ENV !== "production") {
     }, 100);
   });
   app.use(connectLiveReload());
+  console.log("LiveReload が有効になりました。"); // ← 確認用に追加しても良い
 }
 
 app.use(express.static(__dirname + "/public"));
@@ -116,9 +117,76 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`サーバーがポート ${PORT} で起動しました`);
-  if (process.env.NODE_ENV !== "production") {
-    console.log("LiveReload が有効です。");
-  }
-});
+// テスト用にエクスポートする関数
+const startServer = (testPort) => {
+  return new Promise((resolve) => {
+    const activeServer = server.listen(testPort || PORT, () => {
+      console.log(
+        `テストサーバーがポート ${activeServer.address().port} で起動しました`
+      );
+      resolve(activeServer); // 起動したサーバーインスタンスを返す
+    });
+  });
+};
+
+const stopServer = (httpServerInstance) => {
+  return new Promise((resolve, reject) => {
+    if (!httpServerInstance) {
+      console.log("テストサーバーインスタンスが存在しません。");
+      return resolve();
+    }
+
+    // まずSocket.IOサーバーを閉じる
+    io.close((ioErr) => {
+      if (ioErr) {
+        console.error(
+          "Socket.IOサーバーのクローズ中にエラー発生（無視して続行）:",
+          ioErr
+        );
+      }
+      console.log(
+        "Socket.IOサーバーがクローズされました（またはクローズ試行完了）。"
+      );
+
+      // Socket.IOクローズ後、HTTPサーバーがまだリスニング中か再確認
+      if (!httpServerInstance.listening) {
+        console.log(
+          "HTTPテストサーバーはSocket.IOクローズ後にリスニングを停止していました。"
+        );
+        return resolve();
+      }
+
+      httpServerInstance.close((httpErr) => {
+        if (httpErr) {
+          console.error("HTTPテストサーバーの停止処理中にエラー発生:", httpErr);
+          return reject(httpErr); // ここで発生するエラーは深刻な可能性
+        }
+        console.log("HTTPテストサーバーが正常に停止しました。");
+        resolve();
+      });
+    });
+  });
+};
+
+if (require.main === module) {
+  server.listen(PORT, () => {
+    console.log(`サーバーがポート ${PORT} で起動しました`);
+    // livereload をコメントアウトしているので、以下のNODE_ENVのチェックも
+    // 本来は不要ですが、あっても害はありません。
+    if (
+      process.env.NODE_ENV !== "production" &&
+      process.env.NODE_ENV !== "test"
+    ) {
+      console.log("LiveReload が有効です。(現在はコメントアウト中のはず)");
+    }
+  });
+}
+
+module.exports = {
+  app, // Express アプリケーション
+  server, // HTTP サーバー (元のインスタンス)
+  io, // Socket.IO インスタンス
+  PORT, // 設定されたポート
+  startServer, // テスト用起動関数
+  stopServer, // テスト用停止関数
+};

@@ -4,7 +4,10 @@
 # 何コレー？
 
 - WebSocket を用いたチャットアプリのデモです。投稿をリアルタイムで更新します
-  ![f3e2f5f736a0153fbd7b0fa27f09c928](https://github.com/user-attachments/assets/efa591e5-6658-4d46-bafd-0348e393b6ef)
+
+## スクショ
+![c9897ab7ed71f1c6745ff3d14e4b1b28](https://github.com/user-attachments/assets/398fab3a-a5ec-422e-a2c7-46d6cf38e5d2)
+
 
 ## はじめ方
 

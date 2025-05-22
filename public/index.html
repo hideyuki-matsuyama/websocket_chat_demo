@@ -4,70 +4,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>リアルタイムチャット</title>
-    <style>
-      body {
-        margin: 0;
-        padding-bottom: 3rem;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-          Helvetica, Arial, sans-serif;
-      }
-      #form {
-        background: rgba(0, 0, 0, 0.15);
-        padding: 0.25rem;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        display: flex;
-        height: 3rem;
-        box-sizing: border-box;
-        -webkit-backdrop-filter: blur(10px);
-        backdrop-filter: blur(10px);
-      }
-      #input {
-        border: none;
-        padding: 0 1rem;
-        flex-grow: 1;
-        border-radius: 2rem;
-        margin: 0.25rem;
-      }
-      #input:focus {
-        outline: none;
-      }
-      #form > button {
-        background: #333;
-        border: none;
-        padding: 0 1rem;
-        margin: 0.25rem;
-        border-radius: 3px;
-        outline: none;
-        color: #fff;
-      }
-      #messages {
-        list-style-type: none;
-        margin: 0;
-        padding: 0;
-      }
-      #messages > li {
-        padding: 0.5rem 1rem;
-      }
-      #messages > li:nth-child(odd) {
-        background: #efefef;
-      }
-    </style>
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
+    <div id="room-container">
+      <label for="room-input" class="room-label">ルーム名:</label>
+      <input id="room-input" autocomplete="off" placeholder="ルーム名を入力" />
+      <button id="join-button">入室</button>
+    </div>
+
+    <div id="current-room-display" class="hidden"></div>
+
     <ul id="messages"></ul>
-    <form id="form" action="">
-      <label for="input"
-        >メッセージ:
-        <input
-          id="input"
-          autocomplete="off"
-          placeholder="メッセージを入力"
-          title="メッセージを入力"
-        />
-      </label>
+
+    <form id="chat-form" action="" class="hidden">
+      <label for="message-input" class="hidden">メッセージ:</label>
+      <input
+        id="message-input"
+        autocomplete="off"
+        placeholder="メッセージを入力"
+        title="メッセージを入力"
+      />
       <button type="submit">送信</button>
     </form>
 
@@ -75,25 +32,84 @@
     <script>
       const socket = io(); // サーバーに接続
 
-      const form = document.getElementById("form");
-      const input = document.getElementById("input");
+      const roomContainer = document.getElementById("room-container");
+      const roomInput = document.getElementById("room-input");
+      const joinButton = document.getElementById("join-button");
+      const currentRoomDisplay = document.getElementById(
+        "current-room-display"
+      );
+
+      const chatForm = document.getElementById("chat-form");
+      const messageInput = document.getElementById("message-input");
       const messages = document.getElementById("messages");
 
-      form.addEventListener("submit", (e) => {
+      let currentRoom = "";
+
+      // ルーム入室処理
+      joinButton.addEventListener("click", () => {
+        const roomName = roomInput.value.trim();
+        if (roomName) {
+          socket.emit("join room", roomName, (response) => {
+            if (response.success) {
+              currentRoom = roomName;
+              roomContainer.classList.add("hidden"); // ルーム選択UIを隠す
+              chatForm.classList.remove("hidden"); // チャットフォームを表示
+              messageInput.focus();
+              messages.innerHTML = ""; // 以前のルームのメッセージをクリア
+              currentRoomDisplay.textContent = `現在のルーム: ${currentRoom}`;
+              currentRoomDisplay.classList.remove("hidden");
+              console.log(`ルーム '${roomName}' に入室しました`);
+            } else {
+              alert(response.message || "ルームへの入室に失敗しました。");
+            }
+          });
+        }
+      });
+
+      // Enterキーでルーム入室
+      roomInput.addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          joinButton.click();
+        }
+      });
+
+      // メッセージ送信処理
+      chatForm.addEventListener("submit", (e) => {
         e.preventDefault(); // フォームのデフォルト送信動作をキャンセル
-        if (input.value) {
-          // 'chat message' イベントをサーバーに送信
-          socket.emit("chat message", input.value);
-          input.value = ""; // 入力フィールドを空にする
+        if (messageInput.value && currentRoom) {
+          // 'chat message' イベントをサーバーに送信 (ルーム情報も付加)
+          socket.emit("chat message", {
+            room: currentRoom,
+            message: messageInput.value,
+          });
+          messageInput.value = ""; // 入力フィールドを空にする
         }
       });
 
       // サーバーから 'chat message' イベントを受信したときの処理
-      socket.on("chat message", (msg) => {
+      socket.on("chat message", (data) => {
+        // dataが文字列の場合はそのまま表示（旧バージョン互換またはシステムメッセージ）
+        // dataがオブジェクトの場合はメッセージ本文を表示
+        const messageText = typeof data === "string" ? data : data.message;
+        const sender =
+          typeof data === "object" && data.sender
+            ? `[${data.sender === socket.id ? "あなた" : "相手"}] `
+            : "";
+
         const item = document.createElement("li");
-        item.textContent = msg;
+        item.textContent = sender + messageText;
         messages.appendChild(item);
         window.scrollTo(0, document.body.scrollHeight); // 最新のメッセージが見えるようにスクロール
+      });
+
+      // サーバーからルームに関する通知を受信 (例: 他のユーザーの入退室)
+      socket.on("room notification", (notification) => {
+        const item = document.createElement("li");
+        item.style.fontStyle = "italic";
+        item.style.color = "gray";
+        item.textContent = notification;
+        messages.appendChild(item);
+        window.scrollTo(0, document.body.scrollHeight);
       });
     </script>
   </body>

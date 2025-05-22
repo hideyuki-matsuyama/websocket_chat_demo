@@ -1,0 +1,17 @@
+version: "3.8"
+
+services:
+  chat-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "35729:35729"
+    container_name: real-time-chat-container-dev
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: npm run dev

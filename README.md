@@ -1,4 +1,5 @@
 [![Docker Image CI](https://github.com/hideyuki-matsuyama/websocket_chat_demo/actions/workflows/docker-image.yml/badge.svg)](https://github.com/hideyuki-matsuyama/websocket_chat_demo/actions/workflows/docker-image.yml)
+[![Node.js CI](https://github.com/hideyuki-matsuyama/websocket_chat_demo/actions/workflows/nodejs-ci.yml/badge.svg)](https://github.com/hideyuki-matsuyama/websocket_chat_demo/actions/workflows/nodejs-ci.yml)
 
 # 何コレー？
 
